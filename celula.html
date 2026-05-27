@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Rv Educativa - Escáner de celulas</title>
+    <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
+    <script>
+        // COMPONENTE: Sistema de Escaneo y Feedback
+        AFRAME.registerComponent('bio-scanner', {
+            schema: {
+                name: {type: 'string'},
+                info: {type: 'string'},
+                function: {type: 'string'}
+            },
+            init: function () {
+                var el = this.el;
+                var data = this.data;
+                var uiTitle = document.querySelector('#ui-name');
+                var uiFunc = document.querySelector('#ui-func');
+                var uiDesc = document.querySelector('#ui-desc');
+                var scanLine = document.querySelector('#scan-line');
+
+                el.addEventListener('mouseenter', function () {
+                    el.setAttribute('material', 'emissive', '#222');
+                    el.setAttribute('material', 'emissiveIntensity', 2);
+                    if(scanLine) scanLine.setAttribute('visible', 'true');
+                    document.querySelector('a-cursor').setAttribute('color', '#00FF00');
+                });
+
+                el.addEventListener('mouseleave', function () {
+                    el.setAttribute('material', 'emissiveIntensity', 0);
+                    if(scanLine) scanLine.setAttribute('visible', 'false');
+                    document.querySelector('a-cursor').setAttribute('color', '#fff');
+                });
+
+                el.addEventListener('click', function () {
+                    uiTitle.setAttribute('value', data.name);
+                    uiFunc.setAttribute('value', "FUNCION: " + data.function);
+                    uiDesc.setAttribute('value', data.info);
+                    uiTitle.setAttribute('animation', 'property: opacity; from: 0; to: 1; dur: 500');
+                });
+            }
+        });
+
+        // COMPONENTE: Generador Multicelular
+        AFRAME.registerComponent('multicellular-system', {
+            init: function () {
+                const masterCell = document.querySelector('#cell-master');
+                const spacing = 18; 
+                const count = 2;   
+
+                for (let x = -count; x <= count; x++) {
+                    for (let y = -count; y <= count; y++) {
+                        for (let z = -count; z <= count; z++) {
+                            if (x === 0 && y === 0 && z === 0) continue;
+
+                            let clone = masterCell.cloneNode(true);
+                            clone.setAttribute('id', `cell-${x}-${y}-${z}`);
+                            clone.setAttribute('position', {
+                                x: x * spacing + (Math.random() * 2), 
+                                y: y * spacing + (Math.random() * 2), 
+                                z: z * spacing + (Math.random() * 2)
+                            });
+                            clone.setAttribute('rotation', {
+                                x: Math.random() * 360,
+                                y: Math.random() * 360,
+                                z: Math.random() * 360
+                            });
+                            this.el.appendChild(clone);
+                        }
+                    }
+                }
+            }
+        });
+
+        // COMPONENTE: Ambiente
+        AFRAME.registerComponent('cell-environment', {
+            init: function() {
+                var scene = this.el;
+                for (var i = 0; i < 200; i++) {
+                    var r = document.createElement('a-sphere');
+                    r.setAttribute('radius', '0.02');
+                    r.setAttribute('color', '#FFCC00');
+                    r.setAttribute('opacity', '0.5');
+                    r.setAttribute('position', {
+                        x: (Math.random() - 0.5) * 60, 
+                        y: (Math.random() - 0.5) * 60, 
+                        z: (Math.random() - 0.5) * 60
+                    });
+                    scene.appendChild(r);
+                }
+            }
+        });
+    </script>
+</head>
+<body>
+    <a-scene background="color: #010103" fog="type: exponential; color: #010103; density: 0.05" cell-environment multicellular-system>
+        
+        <a-entity position="0 1.6 8">
+            <a-camera look-controls wasd-controls="acceleration: 100; fly: true">
+                <a-cursor color="white" scale="0.5 0.5 0.5"></a-cursor>
+                
+                <a-entity position="1.2 -0.8 -1.5" scale="0.5 0.5 0.5">
+                    <a-plane id="ui-panel" color="#000" opacity="0.8" width="2.5" height="1.6">
+                        <a-text id="ui-name" value="MODO VUELO ACTIVO" position="-1.1 0.6 0.01" width="4" color="#00FFFF"></a-text>
+                        <a-text value="CONTROLES: W-A-S-D para volar. Mirar arriba/abajo cambia direccion vertical." position="-1.1 0.35 0.01" width="1.8" color="#AAA"></a-text>
+                        <a-text id="ui-func" value="Selecciona un organulo" position="-1.1 0.1 0.01" width="2.5" color="#FFFF00"></a-text>
+                        <a-text id="ui-desc" value="Analisis de tejido multicelular..." position="-1.1 -0.3 0.01" width="2" color="#FFFFFF"></a-text>
+                        <a-plane id="scan-line" width="2.3" height="0.02" color="#00FFFF" position="0 0 0.02" visible="false"
+                                 animation="property: position; from: 0 0.6 0.02; to: 0 -0.6 0.02; dir: alternate; loop: true; dur: 1000"></a-plane>
+                    </a-plane>
+                </a-entity>
+            </a-camera>
+        </a-entity>
+
+        <a-light type="ambient" color="#223" intensity="0.4"></a-light>
+        <a-light type="point" position="5 5 5" intensity="0.8" color="#FFF"></a-light>
+
+        <a-entity id="cell-master" position="0 1.5 0" animation="property: rotation; to: 0 360 0; dur: 80000; loop: true; easing: linear">
+            <a-sphere radius="3.2" material="color: #4B0082; opacity: 0.1; side: double; transparent: true; roughness: 0.1"
+                      bio-scanner="name: MEMBRANA; function: Barrera; info: Controla el intercambio de sustancias.">
+            </a-sphere>
+
+            <a-entity>
+                <a-sphere radius="1" material="color: #8B0000; roughness: 0.8; metalness: 0.2"
+                          bio-scanner="name: NUCLEO; function: Herencia; info: Almacena el ADN y dirige la reproduccion.">
+                </a-sphere>
+                <a-sphere position="0 0.3 0.4" radius="0.3" color="#FF4500" 
+                          bio-scanner="name: NUCLEOLO; function: Ribosomas; info: Lugar donde se sintetizan las subunidades ribosomicas.">
+                </a-sphere>
+            </a-entity>
+
+            <a-entity>
+                <a-torus-knot radius="1.4" radius-tubular="0.08" p="3" q="7" material="color: #1E90FF; roughness: 0.5"
+                              bio-scanner="name: R.E. RUGOSO; function: Sintesis; info: Cubierto de ribosomas para fabricar proteinas.">
+                    <a-sphere radius="0.03" color="yellow" position="1 0.5 0"></a-sphere>
+                    <a-sphere radius="0.03" color="yellow" position="-1 -0.2 0.5"></a-sphere>
+                    <a-sphere radius="0.03" color="yellow" position="0.5 1 -0.5"></a-sphere>
+                </a-torus-knot>
+            </a-entity>
+
+            <a-entity position="1.5 1 0.5" rotation="45 45 0"
+                      bio-scanner="name: MITOCONDRIA; function: ATP; info: Convierte nutrientes en energia quimica.">
+                <a-capsule radius="0.25" length="0.7" color="#FF8C00"></a-capsule>
+            </a-entity>
+
+            <a-entity position="-1.5 -1.2 -0.5" rotation="-20 10 40"
+                      bio-scanner="name: MITOCONDRIA; function: ATP; info: Central energetica celular.">
+                <a-capsule radius="0.22" length="0.6" color="#FF8C00"></a-capsule>
+            </a-entity>
+
+            <a-entity position="-1.5 1 -0.5" rotation="0 45 30"
+                      bio-scanner="name: APARATO DE GOLGI; function: Envio; info: Modifica y distribuye proteinas al exterior.">
+                <a-cylinder radius="0.7" height="0.04" color="#32CD32" position="0 0.1 0"></a-cylinder>
+                <a-cylinder radius="0.65" height="0.04" color="#32CD32" position="0 0 0"></a-cylinder>
+                <a-cylinder radius="0.6" height="0.04" color="#32CD32" position="0 -0.1 0"></a-cylinder>
+                <a-sphere radius="0.1" color="#32CD32" position="0.8 0 0" 
+                          animation="property: position; to: 1.5 0.5 0.2; dur: 3000; loop: true"></a-sphere>
+            </a-entity>
+
+            <a-sphere position="2 -1 0" radius="0.18" color="#ADFF2F"
+                      bio-scanner="name: LISOSOMA; function: Reciclaje; info: Destruye bacterias y organulos viejos."></a-sphere>
+            
+            <a-sphere position="0.5 -1.8 -1" radius="0.12" color="#7CFC00"
+                      bio-scanner="name: PEROXISOMA; function: Detox; info: Neutraliza sustancias toxicas en la celula."></a-sphere>
+
+            <a-entity position="1 -1.5 -0.5" rotation="45 0 0"
+                      bio-scanner="name: CENTRIOLOS; function: Division; info: Ayudan en la separacion de cromosomas.">
+                <a-cylinder radius="0.03" height="0.3" color="#F0E68C" position="0.05 0 0"></a-cylinder>
+                <a-cylinder radius="0.03" height="0.3" color="#F0E68C" rotation="90 0 0"></a-cylinder>
+            </a-entity>
+        </a-entity>
+
+    </a-scene>
+</body>
+</html>

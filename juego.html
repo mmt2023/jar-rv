@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SpaceFly</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background-color: #00000000;
+            font-family: Arial, sans-serif;
+        }
+
+        .contenedor {
+            text-align: center;
+        }
+
+        canvas {
+            border: 3px solid white;
+            background-color: #00000000;
+            display: block;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+
+        .info {
+            color: white;
+            font-size: 18px;
+            margin-bottom: 15px;
+        }
+
+        .puntuacion {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .controles {
+            color: #ddd;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+
+        .game-over {
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.9);
+            color: white;
+            padding: 40px;
+            border-radius: 10px;
+            text-align: center;
+            z-index: 100;
+        }
+
+        .game-over h1 {
+            font-size: 48px;
+            margin-bottom: 20px;
+            color: #ff6b6b;
+        }
+
+        .game-over p {
+            font-size: 20px;
+            margin-bottom: 10px;
+        }
+
+        .boton {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            font-size: 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 15px;
+            transition: background 0.3s;
+        }
+
+        .boton:hover {
+            background: #764ba2;
+        }
+
+        h1 {
+            color: white;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="contenedor">
+        <canvas id="gameCanvas" width="900" height="600"></canvas>
+        <div class="info">
+            <div class="puntuacion">Puntuacion: <span id="score">0</span></div>
+            <div class="controles">
+                Presiona ESPACIO o haz CLICK para saltar
+            </div>
+        </div>
+    </div>
+
+    <div class="game-over" id="gameOver">
+        <h1>GAME OVER!</h1>
+        <p id="finalScore">Puntuacion Final: 0</p>
+        <button class="boton" onclick="reiniciarJuego()">Reiniciar Juego</button>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const gameOverDiv = document.getElementById('gameOver');
+        const scoreElement = document.getElementById('score');
+        const finalScoreElement = document.getElementById('finalScore');
+
+        // Configuracion
+        const GRAVEDAD = 0.2;
+        const VELOCIDAD_SALTO = 5;
+        const VELOCIDAD_TUBERIA = 3;
+        const GAP = 150; // Espacio entre tuberias
+
+        // Objeto pajaro
+        const pajaro = {
+            x: 50,
+            y: canvas.height / 2,
+            ancho: 30,
+            alto: 30,
+            velocidad: 0,
+
+            actualizar() {
+                this.velocidad += GRAVEDAD;
+                this.y += this.velocidad;
+
+                // Limites de pantalla
+                if (this.y < 0) {
+                    this.y = 0;
+                    this.velocidad = 0;
+                }
+                if (this.y + this.alto > canvas.height) {
+                    this.y = canvas.height - this.alto;
+                }
+            },
+
+            saltar() {
+                this.velocidad = -VELOCIDAD_SALTO;
+            },
+
+            dibujar() {
+                // Cuerpo amarillo
+                ctx.fillStyle = '#FFD700';
+                ctx.fillRect(this.x, this.y, this.ancho, this.alto);
+
+                // Ojos
+                ctx.fillStyle = 'white';
+                ctx.fillRect(this.x + 8, this.y + 8, 8, 8);
+                ctx.fillRect(this.x + 16, this.y + 8, 8, 8);
+
+                // Pupilas
+                ctx.fillStyle = 'black';
+                ctx.fillRect(this.x + 10, this.y + 10, 5, 5);
+                ctx.fillRect(this.x + 18, this.y + 10, 5, 5);
+
+                // Borde
+                ctx.strokeStyle = '#FF8C00';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(this.x, this.y, this.ancho, this.alto);
+            }
+        };
+
+        // Array de tuberias
+        let tuberias = [];
+
+        class Tuberia {
+            constructor(x) {
+                this.x = x;
+                this.ancho = 50;
+                this.alturaTop = Math.random() * (canvas.height - GAP - 80) + 40;
+                this.alturaBottom = canvas.height - this.alturaTop - GAP;
+                this.scored = false;
+            }
+
+            actualizar() {
+                this.x -= VELOCIDAD_TUBERIA;
+            }
+
+            dibujar() {
+                // Tuberia superior
+                ctx.fillStyle = '#228B22';
+                ctx.fillRect(this.x, 0, this.ancho, this.alturaTop);
+                ctx.strokeStyle = '#1a6b1a';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(this.x, 0, this.ancho, this.alturaTop);
+
+                // Tuberia inferior
+                ctx.fillStyle = '#228B22';
+                ctx.fillRect(this.x, this.alturaTop + GAP, this.ancho, this.alturaBottom);
+                ctx.strokeStyle = '#1a6b1a';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(this.x, this.alturaTop + GAP, this.ancho, this.alturaBottom);
+            }
+
+            estaFuera() {
+                return this.x + this.ancho < 0;
+            }
+
+            detectarColision(pajaro) {
+                // Colision con bordes
+                if (pajaro.y <= 0 || pajaro.y + pajaro.alto >= canvas.height) {
+                    return true;
+                }
+
+                // Colision con tuberias 
+                if (pajaro.x + pajaro.ancho > this.x && pajaro.x < this.x + this.ancho) {
+                    if (pajaro.y < this.alturaTop || pajaro.y + pajaro.alto > this.alturaTop + GAP) {
+                        return true;
+                    }
+                }
+                return false;
+            }
+        }
+
+        let puntuacion = 0;
+        let juegoActivo = true;
+        let contadorTuberia = 0;
+
+        function actualizar() {
+            if (!juegoActivo) return;
+
+            // Actualizar pajaro
+            pajaro.actualizar();
+
+            // Crear nuevas tuberias
+            contadorTuberia++;
+            if (contadorTuberia > 100) {
+                tuberias.push(new Tuberia(canvas.width));
+                contadorTuberia = 0;
+            }
+
+            // Actualizar tuberias
+            for (let i = tuberias.length - 1; i >= 0; i--) {
+                tuberias[i].actualizar();
+
+                // Detectar colision
+                if (tuberias[i].detectarColision(pajaro)) {
+                    finalizarJuego();
+                    return;
+                }
+
+                // Contar puntuacion
+                if (!tuberias[i].scored && pajaro.x > tuberias[i].x + tuberias[i].ancho) {
+                    tuberias[i].scored = true;
+                    puntuacion++;
+                    scoreElement.textContent = puntuacion;
+                }
+
+                // Eliminar tuberias fuera de pantalla
+                if (tuberias[i].estaFuera()) {
+                    tuberias.splice(i, 1); 
+                }
+            }
+        }
+
+        function dibujar() {
+            // Limpiar canvas
+            ctx.fillStyle = 'rgba(135, 206, 235, 0.5)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Dibujar tuberias
+            for (let tuberia of tuberias) {
+                tuberia.dibujar();
+            }
+
+            // Dibujar pajaro
+            pajaro.dibujar();
+
+            // Dibujar puntuacion en la esquina
+            ctx.fillStyle = 'white';
+            ctx.font = 'bold 24px Arial';
+            ctx.fillText('Score: ' + puntuacion, 10, 35);
+        }
+
+        function gameLoop() {
+            actualizar();
+            dibujar();
+            requestAnimationFrame(gameLoop);
+        }
+
+        function finalizarJuego() {
+            juegoActivo = false;
+            finalScoreElement.textContent = 'Puntuacion Final: ' + puntuacion;
+            gameOverDiv.style.display = 'block';
+        }
+
+        function reiniciarJuego() {
+            pajaro.y = canvas.height / 2;
+            pajaro.velocidad = 0;
+            tuberias = [];
+            puntuacion = 0;
+            contadorTuberia = 0;
+            juegoActivo = true;
+            scoreElement.textContent = '0';
+            gameOverDiv.style.display = 'none';
+        }
+
+        // Controles
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'Space') {
+                e.preventDefault();
+                if (juegoActivo) {
+                    pajaro.saltar();
+                }
+            }
+        });
+
+        canvas.addEventListener('click', () => {
+            if (juegoActivo) {
+                pajaro.saltar();
+            }
+        });
+
+        // Iniciar juego
+        gameLoop();
+    </script>
+</body>
+</html>
